@@ -6,6 +6,7 @@ class quizes_cont extends StatelessWidget {
   final String duration;
   final int questionsCount;
   final VoidCallback onTap;
+  final VoidCallback? onTrackingTap;
 
   const quizes_cont({
     super.key,
@@ -14,6 +15,7 @@ class quizes_cont extends StatelessWidget {
     required this.duration,
     required this.questionsCount,
     required this.onTap,
+    this.onTrackingTap,
   });
 
   static const Color mainGreen = Color(0xFF0D4726);
@@ -41,13 +43,25 @@ class quizes_cont extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              name,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: mainGreen,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    name,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: mainGreen,
+                    ),
+                  ),
+                ),
+                if (onTrackingTap != null)
+                  IconButton(
+                    icon: const Icon(Icons.people, color: mainGreen, size: 24),
+                    onPressed: onTrackingTap,
+                    tooltip: "View Student Tracking",
+                  ),
+              ],
             ),
             const SizedBox(height: 8),
             Row(

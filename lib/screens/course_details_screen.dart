@@ -1,13 +1,15 @@
 // lib/screens/course_details_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
+import '../cubit/course_cubit.dart';
 import '../models/course.dart';
 import '../models/quiz.dart';
-import '../services/data_service.dart';
 import '../widgets/quizes_cont.dart';
 import 'add_questions_screen.dart';
+import 'student_tracking_screen.dart';
 
 class CourseDetailsScreen extends StatelessWidget {
   final Course course;
@@ -72,10 +74,13 @@ class CourseDetailsScreen extends StatelessWidget {
 
             // رسالة "No quizzes yet" أجمل شوية
             Expanded(
-              child: ValueListenableBuilder(
-                valueListenable: DataService.instance.coursesNotifier,
-                builder: (context, _, __) {
-                  final quizzes = DataService.instance.getQuizzesForCourse(course.id);
+              child: BlocBuilder<CourseCubit, CourseState>(
+                builder: (context, state) {
+                  final quizzes = state.quizzes.where((quiz) => quiz.courseId == course.id).toList();
+
+                  if ((state.status == CourseStatus.loading || state.status == CourseStatus.initial) && state.quizzes.isEmpty) {
+                    return const Center(child: CircularProgressIndicator(color: mainGreen));
+                  }
 
                   if (quizzes.isEmpty) {
                     return Center(
@@ -112,6 +117,12 @@ class CourseDetailsScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(builder: (_) => AddQuestionsScreen(quiz: quiz)),
+                            );
+                          },
+                          onTrackingTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => StudentTrackingScreen(quiz: quiz)),
                             );
                           },
                         ),
@@ -188,19 +199,41 @@ class CourseDetailsScreen extends StatelessWidget {
                 children: [
                   const Text("Duration:", style: TextStyle(fontSize: 16, color: mainGreen)),
                   const Spacer(),
-                  DropdownButton<int>(
-                    value: durationMinutes,
-                    dropdownColor: beigeLight,
-                    style: const TextStyle(color: mainGreen, fontSize: 17, fontWeight: FontWeight.w600),
-                    underline: Container(),
-                    icon: const Icon(Icons.timer_outlined, color: mainGreen),
-                    items: [10, 20, 30, 45, 60]
-                        .map((m) => DropdownMenuItem(
-                              value: m,
-                              child: Text("$m min"),
-                            ))
-                        .toList(),
-                    onChanged: (v) => setState(() => durationMinutes = v!),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: mainGreen, width: 2),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: durationMinutes,
+                        dropdownColor: beigeLight,
+                        borderRadius: BorderRadius.circular(18),
+                        style: const TextStyle(color: mainGreen, fontSize: 17, fontWeight: FontWeight.w600),
+                        icon: const Icon(Icons.timer_outlined, color: mainGreen),
+                        items: [10, 20, 30, 45, 60]
+                            .map(
+                              (m) => DropdownMenuItem(
+                                value: m,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+              
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    "$m min",
+                                    style: const TextStyle(color: mainGreen, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (v) => setState(() => durationMinutes = v!),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -209,14 +242,14 @@ class CourseDetailsScreen extends StatelessWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text("Cancel", style: TextStyle(color: mainGreen, fontSize: 16)),
+              child: const Text("Cancel", style: TextStyle(color: Colors.red, fontSize: 16)),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: mainGreen,
+                backgroundColor: beigeLight,
                 padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                elevation: 6,
+                elevation: 0,
               ),
               onPressed: () {
                 final title = titleController.text.trim();
@@ -236,7 +269,7 @@ class CourseDetailsScreen extends StatelessWidget {
                   questions: [],
                 );
 
-                DataService.instance.addQuiz(newQuiz);
+                context.read<CourseCubit>().addQuiz(newQuiz);
                 Navigator.pop(ctx);
                 Navigator.push(
                   context,
@@ -245,7 +278,7 @@ class CourseDetailsScreen extends StatelessWidget {
               },
               child: const Text(
                 "Create & Start",
-                style: TextStyle(color: tileFill, fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(color: mainGreen, fontWeight: FontWeight.bold, fontSize: 16),
               ),
             ),
           ],
