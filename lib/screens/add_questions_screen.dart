@@ -1,9 +1,8 @@
 // lib/screens/add_questions_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import '../cubit/course_cubit.dart';
 import '../models/question.dart';
 import '../models/quiz.dart';
+import '../services/firebase_data_service.dart';
 
 class AddQuestionsScreen extends StatefulWidget {
   final Quiz quiz;
@@ -55,8 +54,8 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
     // Success feedback
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: const [
+        content: const Row(
+          children: [
             Icon(Icons.check_circle, color: Colors.white, size: 20),
             SizedBox(width: 8),
             Text("Question added successfully!"),
@@ -70,9 +69,9 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
     );
   }
 
-  void _saveAndExit() {
+  Future<void> _saveAndExit() async {
     final updatedQuiz = widget.quiz.copyWith(questions: questions);
-    context.read<CourseCubit>().updateQuiz(updatedQuiz);
+    await FirebaseDataService.instance.updateQuiz(updatedQuiz);
 
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -211,7 +210,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                     suffixIcon: IconButton(
                       icon: Container(
                         padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: mainGreen,
                           shape: BoxShape.circle,
                         ),
@@ -292,7 +291,7 @@ class _AddQuestionsScreenState extends State<AddQuestionsScreen> {
                               size: 64, color: mainGreen.withOpacity(0.7)),
                         ),
                         const SizedBox(height: 20),
-                        Text(
+                        const Text(
                           "No questions yet",
                           style: TextStyle(
                             fontSize: 20,

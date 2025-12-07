@@ -1,10 +1,8 @@
 // lib/screens/student_tracking_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../cubit/course_cubit.dart';
 import '../models/quiz.dart';
-import '../services/data_service.dart';
+import '../services/firebase_data_service.dart';
 
 class StudentTrackingScreen extends StatelessWidget {
   final Quiz quiz;
@@ -25,59 +23,132 @@ class StudentTrackingScreen extends StatelessWidget {
         centerTitle: true,
         title: Text(
           quiz.title,
-          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+              color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: BlocBuilder<CourseCubit, CourseState>(
-        builder: (context, state) {
-          final students = state.students;
+      body: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: FirebaseDataService.instance.monitorActiveStudents(quiz.id),
+        builder: (context, activeSessionsSnapshot) {
           final allQuestions = quiz.questions;
           // Limit to maximum 10 questions for tracking
           final questions = allQuestions.take(10).toList();
-          final answersMap = DataService.instance.getStudentAnswersMap(quiz.id);
 
-          if (students.isEmpty || questions.isEmpty) {
+          if (questions.isEmpty) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(
-                    students.isEmpty ? Icons.people_outline : Icons.quiz_outlined,
+                    Icons.quiz_outlined,
                     size: 64,
                     color: mainGreen.withOpacity(0.4),
                   ),
                   const SizedBox(height: 16),
-                  Text(
-                    students.isEmpty ? "No students yet" : "No questions in this quiz",
-                    style: const TextStyle(fontSize: 18, color: mainGreen, fontWeight: FontWeight.w600),
+                  const Text(
+                    "No questions in this quiz",
+                    style: TextStyle(
+                        fontSize: 18,
+                        color: mainGreen,
+                        fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
             );
           }
 
+          // Get active sessions data
+          final activeSessions = activeSessionsSnapshot.data ?? [];
+
+          if (activeSessions.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.people_outline,
+                    size: 64,
+                    color: mainGreen.withOpacity(0.4),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "No active students",
+                    style: TextStyle(
+                        fontSize: 18,
+                        color: mainGreen,
+                        fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    "Students will appear here when they start the quiz",
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: mainGreen.withOpacity(0.6),
+                        fontWeight: FontWeight.normal),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Get all students to match IDs with names
+          final allStudents = FirebaseDataService.instance.students;
+          final studentsMap = {
+            for (var student in allStudents) student.id: student
+          };
+
           final hasMoreThan10Questions = allQuestions.length > 10;
 
           return Column(
             children: [
+              // Active students count indicator
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                color: mainGreen.withOpacity(0.1),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.people,
+                      color: mainGreen,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      "${activeSessions.length} active student${activeSessions.length == 1 ? '' : 's'}",
+                      style: TextStyle(
+                          color: mainGreen,
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
               // Warning if more than 10 questions
               if (hasMoreThan10Questions)
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   color: Colors.orange.withOpacity(0.1),
                   child: Row(
                     children: [
-                      const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                      const Icon(Icons.info_outline,
+                          color: Colors.orange, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           "Showing first 10 questions only (${allQuestions.length} total)",
-                          style: const TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                              color: Colors.orange,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -85,15 +156,19 @@ class StudentTrackingScreen extends StatelessWidget {
                 ),
               // Header with Question Numbers
               Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
                 color: mainGreen,
                 child: Row(
                   children: [
-                    SizedBox(
+                    const SizedBox(
                       width: 100,
-                      child: const Text(
+                      child: Text(
                         "Student",
-                        style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold),
                       ),
                     ),
                     Expanded(
@@ -108,7 +183,10 @@ class StudentTrackingScreen extends StatelessWidget {
                               child: Center(
                                 child: Text(
                                   "Q${index + 1}",
-                                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600),
                                 ),
                               ),
                             ),
@@ -116,7 +194,9 @@ class StudentTrackingScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 50), // Space for score badge
+                    const SizedBox(
+                        width:
+                            80), // Space for current question and score badge
                   ],
                 ),
               ),
@@ -125,10 +205,25 @@ class StudentTrackingScreen extends StatelessWidget {
               Expanded(
                 child: ListView.builder(
                   padding: const EdgeInsets.all(12),
-                  itemCount: students.length,
+                  itemCount: activeSessions.length,
                   itemBuilder: (context, index) {
-                    final student = students[index];
-                    final studentAnswers = answersMap[student.id] ?? {};
+                    final session = activeSessions[index];
+                    final studentId = session['studentId'] as String;
+                    final student = studentsMap[studentId];
+                    final currentQuestionIndex =
+                        session['currentQuestionIndex'] as int? ?? -1;
+                    final answers =
+                        session['answers'] as Map<String, dynamic>? ?? {};
+                    final status = session['status'] as String? ?? 'active';
+
+                    // Convert answers map to questionIndex -> answer format
+                    final studentAnswers = <int, bool?>{};
+                    answers.forEach((key, value) {
+                      final qIndex = int.tryParse(key);
+                      if (qIndex != null) {
+                        studentAnswers[qIndex] = value as bool?;
+                      }
+                    });
 
                     // Calculate statistics (only for displayed questions - first 10)
                     int correctCount = 0;
@@ -143,12 +238,19 @@ class StudentTrackingScreen extends StatelessWidget {
                       }
                     }
 
+                    // Get student name or use ID if not found
+                    final studentName = student?.name ?? 'Unknown Student';
+
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: mainGreen.withOpacity(0.2), width: 1.5),
+                        border: Border.all(
+                            color: status == 'finished'
+                                ? Colors.blue.withOpacity(0.5)
+                                : mainGreen.withOpacity(0.2),
+                            width: status == 'finished' ? 2 : 1.5),
                         boxShadow: [
                           BoxShadow(
                             color: mainGreen.withOpacity(0.08),
@@ -161,20 +263,46 @@ class StudentTrackingScreen extends StatelessWidget {
                         children: [
                           // Student name and score
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 12),
                             child: Row(
                               children: [
                                 // Student name - fixed width
                                 SizedBox(
                                   width: 100,
-                                  child: Text(
-                                    student.name,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: mainGreen,
-                                    ),
-                                    overflow: TextOverflow.ellipsis,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        studentName,
+                                        style: const TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.bold,
+                                          color: mainGreen,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (status == 'finished')
+                                        Container(
+                                          margin: const EdgeInsets.only(top: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blue.withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: const Text(
+                                            "Finished",
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.blue,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                 ),
                                 const SizedBox(width: 8),
@@ -183,43 +311,74 @@ class StudentTrackingScreen extends StatelessWidget {
                                   child: SingleChildScrollView(
                                     scrollDirection: Axis.horizontal,
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
                                       children: List.generate(
                                         questions.length,
                                         (qIndex) {
                                           final answer = studentAnswers[qIndex];
                                           final question = questions[qIndex];
-                                          final isCorrect = answer != null && answer == question.correctAnswer;
+                                          final isCorrect = answer != null &&
+                                              answer == question.correctAnswer;
                                           final hasAnswered = answer != null;
+                                          final isCurrentQuestion =
+                                              qIndex == currentQuestionIndex;
 
                                           return Padding(
-                                            padding: const EdgeInsets.symmetric(horizontal: 2),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 2),
                                             child: Container(
                                               width: 30,
                                               height: 30,
                                               decoration: BoxDecoration(
-                                                color: hasAnswered
-                                                    ? (isCorrect 
-                                                        ? Colors.green.withOpacity(0.15) 
-                                                        : Colors.red.withOpacity(0.15))
-                                                    : Colors.grey.withOpacity(0.1),
+                                                color: isCurrentQuestion
+                                                    ? Colors.orange
+                                                        .withOpacity(0.3)
+                                                    : hasAnswered
+                                                        ? (isCorrect
+                                                            ? Colors.green
+                                                                .withOpacity(
+                                                                    0.15)
+                                                            : Colors.red
+                                                                .withOpacity(
+                                                                    0.15))
+                                                        : Colors.grey
+                                                            .withOpacity(0.1),
                                                 shape: BoxShape.circle,
                                                 border: Border.all(
-                                                  color: hasAnswered
-                                                      ? (isCorrect ? Colors.green : Colors.red)
-                                                      : Colors.grey.withOpacity(0.3),
-                                                  width: 1.5,
+                                                  color: isCurrentQuestion
+                                                      ? Colors.orange
+                                                      : hasAnswered
+                                                          ? (isCorrect
+                                                              ? Colors.green
+                                                              : Colors.red)
+                                                          : Colors.grey
+                                                              .withOpacity(0.3),
+                                                  width: isCurrentQuestion
+                                                      ? 2.5
+                                                      : 1.5,
                                                 ),
                                               ),
-                                              child: Icon(
-                                                hasAnswered
-                                                    ? (isCorrect ? Icons.check : Icons.close)
-                                                    : Icons.remove,
-                                                size: 18,
-                                                color: hasAnswered
-                                                    ? (isCorrect ? Colors.green : Colors.red)
-                                                    : Colors.grey,
-                                              ),
+                                              child: isCurrentQuestion
+                                                  ? const Icon(
+                                                      Icons
+                                                          .radio_button_checked,
+                                                      size: 16,
+                                                      color: Colors.orange,
+                                                    )
+                                                  : Icon(
+                                                      hasAnswered
+                                                          ? (isCorrect
+                                                              ? Icons.check
+                                                              : Icons.close)
+                                                          : Icons.remove,
+                                                      size: 18,
+                                                      color: hasAnswered
+                                                          ? (isCorrect
+                                                              ? Colors.green
+                                                              : Colors.red)
+                                                          : Colors.grey,
+                                                    ),
                                             ),
                                           );
                                         },
@@ -228,41 +387,76 @@ class StudentTrackingScreen extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                // Score badge - fixed width
+                                // Current question indicator and score badge
                                 SizedBox(
-                                  width: 50,
-                                  child: Center(
-                                    child: answeredCount > 0
-                                        ? Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: mainGreen,
-                                              borderRadius: BorderRadius.circular(16),
-                                            ),
-                                            child: Text(
-                                              "$correctCount/$answeredCount",
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
-                                              ),
-                                            ),
-                                          )
-                                        : Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey.withOpacity(0.2),
-                                              borderRadius: BorderRadius.circular(16),
-                                            ),
-                                            child: const Text(
-                                              "0/0",
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.grey,
-                                              ),
+                                  width: 80,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      if (currentQuestionIndex >= 0 &&
+                                          currentQuestionIndex <
+                                              questions.length)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                Colors.orange.withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(8),
+                                          ),
+                                          child: Text(
+                                            "Q${currentQuestionIndex + 1}",
+                                            style: const TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.orange,
                                             ),
                                           ),
+                                        ),
+                                      const SizedBox(height: 4),
+                                      answeredCount > 0
+                                          ? Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: mainGreen,
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                              ),
+                                              child: Text(
+                                                "$correctCount/$answeredCount",
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
+                                              ),
+                                            )
+                                          : Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey
+                                                    .withOpacity(0.2),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
+                                              ),
+                                              child: const Text(
+                                                "0/0",
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -296,7 +490,8 @@ class StudentTrackingScreen extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text(
           "Add Student",
-          style: TextStyle(color: mainGreen, fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: mainGreen, fontSize: 20, fontWeight: FontWeight.bold),
         ),
         content: TextField(
           controller: nameController,
@@ -323,18 +518,20 @@ class StudentTrackingScreen extends StatelessWidget {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: mainGreen,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            onPressed: () {
+            onPressed: () async {
               final name = nameController.text.trim();
               if (name.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Please enter a student name"), backgroundColor: Colors.red),
+                  const SnackBar(
+                      content: Text("Please enter a student name"),
+                      backgroundColor: Colors.red),
                 );
                 return;
               }
-              DataService.instance.addStudent(name);
-              context.read<CourseCubit>().loadInitialData();
+              await FirebaseDataService.instance.addStudent(name);
               Navigator.pop(ctx);
             },
             child: const Text("Add", style: TextStyle(color: Colors.white)),

@@ -28,9 +28,9 @@ class StudentAnswer {
 
   factory StudentAnswer.fromJson(Map<String, dynamic> json) {
     return StudentAnswer(
-      id: json['id'],
-      studentId: json['studentId'],
-      quizId: json['quizId'],
+      id: json['id'] as String? ?? '',
+      studentId: json['studentId'] as String? ?? '',
+      quizId: json['quizId'] as String? ?? '',
       questionIndex: json['questionIndex'],
       answer: json['answer'] as bool?,
       answeredAt: json['answeredAt'] != null
@@ -39,4 +39,3 @@ class StudentAnswer {
     );
   }
 }
-

@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 import 'cubit/course_cubit.dart';
+import 'cubit/quiz_cubit.dart';
 import 'screens/prof_home.dart';
-import 'services/data_service.dart';
-void main() {
+import 'services/firebase_data_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
   runApp(const MyApp());
 }
 
@@ -13,11 +23,25 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => CourseCubit(DataService.instance)..loadInitialData(),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (_) =>
+              CourseCubit(FirebaseDataService.instance)..loadInitialData(),
+        ),
+        BlocProvider(
+          create: (_) =>
+              QuizCubit(FirebaseDataService.instance)..loadInitialData(),
+        ),
+      ],
       child: MaterialApp(
-        debugShowCheckedModeBanner: false,
         title: 'Professor Quiz App',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+          useMaterial3: true,
+        ),
         home: const ProfessorHome(),
       ),
     );

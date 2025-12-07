@@ -11,14 +11,16 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
-
-  # لازم تكون موجودة
+  firebase_core: ^4.2.1
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
+  firebase_messaging: ^16.0.4
+  firebase_storage: ^13.0.4
   shared_preferences: ^2.2.2
   uuid: ^4.2.1
   intl: ^0.19.0
   image_picker: ^1.0.7
-  image_picker_web: ^3.0.2   # مهم جدًا للويب
+  image_picker_web: ^3.0.2   
   flutter_bloc: ^8.1.6
   equatable: ^2.0.5
   

@@ -7,6 +7,8 @@ class quizes_cont extends StatelessWidget {
   final int questionsCount;
   final VoidCallback onTap;
   final VoidCallback? onTrackingTap;
+  final bool showFinalScore;
+  final ValueChanged<bool>? onShowFinalScoreChanged;
 
   const quizes_cont({
     super.key,
@@ -16,6 +18,8 @@ class quizes_cont extends StatelessWidget {
     required this.questionsCount,
     required this.onTap,
     this.onTrackingTap,
+    this.showFinalScore = true,
+    this.onShowFinalScoreChanged,
   });
 
   static const Color mainGreen = Color(0xFF0D4726);
@@ -56,10 +60,32 @@ class quizes_cont extends StatelessWidget {
                   ),
                 ),
                 if (onTrackingTap != null)
-                  IconButton(
-                    icon: const Icon(Icons.people, color: mainGreen, size: 24),
-                    onPressed: onTrackingTap,
-                    tooltip: "View Student Tracking",
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.people,
+                            color: mainGreen, size: 24),
+                        onPressed: onTrackingTap,
+                        tooltip: "View Student Tracking",
+                      ),
+                      if (onShowFinalScoreChanged != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.visibility,
+                                size: 14, color: mainGreen),
+                            const SizedBox(width: 4),
+                            Switch(
+                              value: showFinalScore,
+                              onChanged: onShowFinalScoreChanged,
+                              activeColor: mainGreen,
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ],
+                        ),
+                    ],
                   ),
               ],
             ),
@@ -70,14 +96,18 @@ class quizes_cont extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   duration,
-                  style: TextStyle(color: mainGreen.withOpacity(0.9), fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                      color: mainGreen.withOpacity(0.9),
+                      fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(width: 16),
                 const Icon(Icons.quiz_outlined, size: 18, color: mainGreen),
                 const SizedBox(width: 6),
                 Text(
                   "$questionsCount ${questionsCount == 1 ? "question" : "questions"}",
-                  style: TextStyle(color: mainGreen.withOpacity(0.9), fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                      color: mainGreen.withOpacity(0.9),
+                      fontWeight: FontWeight.w600),
                 ),
               ],
             ),

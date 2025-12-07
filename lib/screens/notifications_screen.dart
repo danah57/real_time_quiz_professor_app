@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import '../cubit/course_cubit.dart';
+import '../services/firebase_data_service.dart';
 import '../models/quiz.dart';
 import '../models/student.dart';
-import '../services/data_service.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -24,17 +24,19 @@ class NotificationsScreen extends StatelessWidget {
         centerTitle: true,
         title: const Text(
           "Results & Scores",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 20),
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 20),
         ),
         leading: IconButton(
-          icon:  const Icon(Icons.arrow_back_ios_new_rounded, color: beigeLight, size: 24),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: beigeLight, size: 24),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: BlocBuilder<CourseCubit, CourseState>(
         builder: (context, state) {
-          final quizzes = state.quizzes;
-          final students = state.students;
+          final quizzes = FirebaseDataService.instance.quizzes;
+          final students = FirebaseDataService.instance.students;
 
           if (quizzes.isEmpty || students.isEmpty) {
             return Center(
@@ -54,7 +56,7 @@ class NotificationsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text(
+                  const Text(
                     "No results yet",
                     style: TextStyle(
                       fontSize: 20,
@@ -75,41 +77,20 @@ class NotificationsScreen extends StatelessWidget {
             );
           }
 
-          // Get all quiz results
-          final List<_QuizResult> results = [];
-          for (final quiz in quizzes) {
-            if (quiz.questions.isEmpty) continue;
-            
-            for (final student in students) {
-              final answersMap = DataService.instance.getStudentAnswersMap(quiz.id);
-              final studentAnswers = answersMap[student.id] ?? {};
-              
-              int correctCount = 0;
-              int answeredCount = 0;
-              for (int i = 0; i < quiz.questions.length && i < 10; i++) {
-                final answer = studentAnswers[i];
-                if (answer != null) {
-                  answeredCount++;
-                  if (answer == quiz.questions[i].correctAnswer) {
-                    correctCount++;
-                  }
-                }
+          return FutureBuilder<List<_QuizResult>>(
+            future: _loadQuizResults(quizzes, students),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                  child: CircularProgressIndicator(
+                    color: mainGreen,
+                  ),
+                );
               }
-              
-              if (answeredCount > 0) {
-                final percentage = (correctCount / answeredCount * 100).round();
-                results.add(_QuizResult(
-                  student: student,
-                  quiz: quiz,
-                  correct: correctCount,
-                  total: answeredCount,
-                  percentage: percentage,
-                ));
-              }
-            }
-          }
 
-          if (results.isEmpty) {
+              final results = snapshot.data ?? [];
+
+              if (results.isEmpty) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -127,7 +108,7 @@ class NotificationsScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text(
+                  const Text(
                     "No completed quizzes",
                     style: TextStyle(
                       fontSize: 20,
@@ -148,28 +129,31 @@ class NotificationsScreen extends StatelessWidget {
             );
           }
 
-          // Sort by date (newest first)
-          results.sort((a, b) => b.quiz.date.compareTo(a.quiz.date));
+              // Sort by date (newest first)
+              results.sort((a, b) => b.quiz.date.compareTo(a.quiz.date));
 
-          return ListView.builder(
+              return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: results.length,
             itemBuilder: (context, index) {
               final result = results[index];
               final isPassing = result.percentage >= 60;
-              
+
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: isPassing ? lightGreen.withOpacity(0.3) : Colors.orange.withOpacity(0.3),
+                    color: isPassing
+                        ? lightGreen.withOpacity(0.3)
+                        : Colors.orange.withOpacity(0.3),
                     width: 2,
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: (isPassing ? lightGreen : Colors.orange).withOpacity(0.1),
+                      color: (isPassing ? lightGreen : Colors.orange)
+                          .withOpacity(0.1),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -189,7 +173,8 @@ class NotificationsScreen extends StatelessWidget {
                               color: mainGreen.withOpacity(0.1),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.person, color: mainGreen, size: 24),
+                            child: const Icon(Icons.person,
+                                color: mainGreen, size: 24),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -215,9 +200,9 @@ class NotificationsScreen extends StatelessWidget {
                               ],
                             ),
                           ),
-
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
                             decoration: BoxDecoration(
                               color: isPassing ? lightGreen : Colors.orange,
                               borderRadius: BorderRadius.circular(20),
@@ -265,9 +250,23 @@ class NotificationsScreen extends StatelessWidget {
                           _ScoreDetail(
                             icon: Icons.calendar_today,
                             label: "Date",
-                            value: DateFormat('MMM dd').format(result.quiz.date),
+                            value:
+                                DateFormat('MMM dd').format(result.quiz.date),
                             color: Colors.blue,
                           ),
+                          if (result.timeTakenSeconds != null) ...[
+                            Container(
+                              width: 1,
+                              height: 40,
+                              color: Colors.grey[300],
+                            ),
+                            _ScoreDetail(
+                              icon: Icons.access_time,
+                              label: "Time",
+                              value: _formatTime(result.timeTakenSeconds!),
+                              color: Colors.purple,
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -293,11 +292,108 @@ class NotificationsScreen extends StatelessWidget {
                   ),
                 ),
               );
+              },
+            );
             },
           );
         },
       ),
     );
+  }
+
+  Future<List<_QuizResult>> _loadQuizResults(
+      List<Quiz> quizzes, List<Student> students) async {
+    final List<_QuizResult> results = [];
+
+    // First, try to get results from quiz_results collection
+    for (final quiz in quizzes) {
+      if (quiz.questions.isEmpty) continue;
+
+      try {
+        // Get quiz results from Firestore
+        final quizResults =
+            await FirebaseDataService.instance.getQuizResults(quiz.id);
+
+        for (final resultData in quizResults) {
+          final studentId = resultData['studentId'] as String?;
+          if (studentId == null) continue;
+
+          final student = students.firstWhere(
+            (s) => s.id == studentId,
+            orElse: () => Student(id: studentId, name: 'Unknown Student'),
+          );
+
+          final correct = resultData['correctAnswers'] as int? ?? 0;
+          final total = resultData['totalQuestions'] as int? ?? 1;
+          final percentage = total > 0 ? ((correct / total) * 100).round() : 0;
+          final timeTakenSeconds = resultData['timeTaken'] as int?;
+
+          results.add(_QuizResult(
+            student: student,
+            quiz: quiz,
+            correct: correct,
+            total: total,
+            percentage: percentage,
+            timeTakenSeconds: timeTakenSeconds,
+          ));
+        }
+      } catch (e) {
+        print('Error loading quiz results for ${quiz.id}: $e');
+      }
+    }
+
+    // If no results from quiz_results, fall back to calculating from student_answers
+    if (results.isEmpty) {
+      for (final quiz in quizzes) {
+        if (quiz.questions.isEmpty) continue;
+
+        for (final student in students) {
+          final answersMap =
+              FirebaseDataService.instance.getStudentAnswersMap(quiz.id);
+          final studentAnswers = answersMap[student.id] ?? {};
+
+          int correctCount = 0;
+          int answeredCount = 0;
+          for (int i = 0; i < quiz.questions.length && i < 10; i++) {
+            final answer = studentAnswers[i];
+            if (answer != null) {
+              answeredCount++;
+              if (answer == quiz.questions[i].correctAnswer) {
+                correctCount++;
+              }
+            }
+          }
+
+          if (answeredCount > 0) {
+            final percentage = (correctCount / answeredCount * 100).round();
+            results.add(_QuizResult(
+              student: student,
+              quiz: quiz,
+              correct: correctCount,
+              total: answeredCount,
+              percentage: percentage,
+              timeTakenSeconds: null,
+            ));
+          }
+        }
+      }
+    }
+
+    return results;
+  }
+
+  String _formatTime(int seconds) {
+    if (seconds < 60) {
+      return '${seconds}s';
+    } else if (seconds < 3600) {
+      final minutes = seconds ~/ 60;
+      final secs = seconds % 60;
+      return '${minutes}m ${secs}s';
+    } else {
+      final hours = seconds ~/ 3600;
+      final minutes = (seconds % 3600) ~/ 60;
+      return '${hours}h ${minutes}m';
+    }
   }
 }
 
@@ -307,6 +403,7 @@ class _QuizResult {
   final int correct;
   final int total;
   final int percentage;
+  final int? timeTakenSeconds; // Time taken in seconds
 
   _QuizResult({
     required this.student,
@@ -314,6 +411,7 @@ class _QuizResult {
     required this.correct,
     required this.total,
     required this.percentage,
+    this.timeTakenSeconds,
   });
 }
 
@@ -355,4 +453,3 @@ class _ScoreDetail extends StatelessWidget {
     );
   }
 }
-

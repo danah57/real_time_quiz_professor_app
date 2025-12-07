@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../cubit/course_cubit.dart';
-import '../services/data_service.dart';
+import '../services/firebase_data_service.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -21,20 +21,24 @@ class DashboardScreen extends StatelessWidget {
         centerTitle: true,
         title: const Text(
           "Overview",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 20),
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 20),
         ),
         leading: IconButton(
-          icon:  const Icon(Icons.arrow_back_ios_new_rounded, color: mainGreen, size: 24),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: mainGreen, size: 24),
           onPressed: () => Navigator.pop(context),
         ),
       ),
       body: BlocBuilder<CourseCubit, CourseState>(
         builder: (context, state) {
           final courses = state.courses;
-          final quizzes = state.quizzes;
-          final students = state.students;
-          final totalQuestions = quizzes.fold<int>(0, (sum, quiz) => sum + quiz.questions.length);
-          final totalAnswers = DataService.instance.studentAnswers.length;
+          final quizzes = FirebaseDataService.instance.quizzes;
+          final students = FirebaseDataService.instance.students;
+          final totalQuestions =
+              quizzes.fold<int>(0, (sum, quiz) => sum + quiz.questions.length);
+          final totalAnswers =
+              FirebaseDataService.instance.studentAnswers.length;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),
@@ -93,7 +97,8 @@ class DashboardScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: mainGreen.withOpacity(0.3), width: 2),
+                    border:
+                        Border.all(color: mainGreen.withOpacity(0.3), width: 2),
                     boxShadow: [
                       BoxShadow(
                         color: mainGreen.withOpacity(0.1),
@@ -116,7 +121,7 @@ class DashboardScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          Text(
+                          const Text(
                             "Summary",
                             style: TextStyle(
                               fontSize: 18,
