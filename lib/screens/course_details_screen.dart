@@ -171,8 +171,10 @@ class CourseDetailsScreen extends StatelessWidget {
 
   void _showAddQuizDialog(BuildContext context) {
     final titleController = TextEditingController();
-    int durationMinutes = 30;
+    final customDurationController = TextEditingController();
+    int? durationMinutes = 30;
     bool showFinalScore = true;
+    bool isCustomDuration = false;
 
     showDialog(
       context: context,
@@ -230,8 +232,8 @@ class CourseDetailsScreen extends StatelessWidget {
                       border: Border.all(color: mainGreen, width: 2),
                     ),
                     child: DropdownButtonHideUnderline(
-                      child: DropdownButton<int>(
-                        value: durationMinutes,
+                      child: DropdownButton<int?>(
+                        value: isCustomDuration ? null : durationMinutes,
                         dropdownColor: beigeLight,
                         borderRadius: BorderRadius.circular(18),
                         style: const TextStyle(
@@ -240,32 +242,98 @@ class CourseDetailsScreen extends StatelessWidget {
                             fontWeight: FontWeight.w600),
                         icon:
                             const Icon(Icons.timer_outlined, color: mainGreen),
-                        items: [10, 20, 30, 45, 60]
-                            .map(
-                              (m) => DropdownMenuItem(
-                                value: m,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    "$m min",
-                                    style: const TextStyle(
-                                        color: mainGreen,
-                                        fontWeight: FontWeight.w600),
+                        items: [
+                          ...([10, 20, 30, 45, 60]
+                              .map(
+                                (m) => DropdownMenuItem<int?>(
+                                  value: m,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      "$m min",
+                                      style: const TextStyle(
+                                          color: mainGreen,
+                                          fontWeight: FontWeight.w600),
+                                    ),
                                   ),
                                 ),
+                              )
+                              .toList()),
+                          DropdownMenuItem<int?>(
+                            value: null,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: const BoxDecoration(
+                                borderRadius:
+                                    BorderRadius.all(Radius.circular(12)),
                               ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => durationMinutes = v!),
+                              child: const Text(
+                                "Other",
+                                style: TextStyle(
+                                    color: mainGreen,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ),
+                        ],
+                        onChanged: (v) {
+                          setState(() {
+                            if (v == null) {
+                              isCustomDuration = true;
+                              durationMinutes = null;
+                            } else {
+                              isCustomDuration = false;
+                              durationMinutes = v;
+                              customDurationController.clear();
+                            }
+                          });
+                        },
                       ),
                     ),
                   ),
                 ],
               ),
+              if (isCustomDuration) ...[
+                const SizedBox(height: 16),
+                const Text("Custom Duration (minutes)",
+                    style: TextStyle(fontSize: 16, color: mainGreen)),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: customDurationController,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    hintText: "Enter duration in minutes",
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 18),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide:
+                          const BorderSide(color: mainGreen, width: 2.5),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(18),
+                      borderSide: const BorderSide(color: mainGreen, width: 3),
+                    ),
+                  ),
+                  style: const TextStyle(color: mainGreen, fontSize: 18),
+                  onChanged: (value) {
+                    setState(() {
+                      if (value.isNotEmpty) {
+                        durationMinutes = int.tryParse(value);
+                      } else {
+                        durationMinutes = null;
+                      }
+                    });
+                  },
+                ),
+              ],
             ],
           ),
           actions: [
@@ -291,12 +359,27 @@ class CourseDetailsScreen extends StatelessWidget {
                   return;
                 }
 
+                final finalDuration = isCustomDuration
+                    ? (durationMinutes ?? 30)
+                    : (durationMinutes ?? 30);
+
+                if (finalDuration <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                          "Please enter a valid duration (greater than 0)"),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                  return;
+                }
+
                 final newQuiz = Quiz(
                   id: const Uuid().v4(),
                   courseId: course.id,
                   title: title,
                   date: DateTime.now(),
-                  duration: Duration(minutes: durationMinutes),
+                  duration: Duration(minutes: finalDuration),
                   questions: [],
                   showFinalScore: showFinalScore,
                 );

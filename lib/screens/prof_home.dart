@@ -439,27 +439,59 @@ class _ProfessorHomeState extends State<ProfessorHome> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.photo_library,
-                      color: tileFill, size: 28),
-                  label: const Text("Choose from Gallery",
-                      style: TextStyle(color: tileFill, fontSize: 13)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: mainGreen,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 16),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20)),
-                  ),
-                  onPressed: () async {
-                    final image =
-                        await picker.pickImage(source: ImageSource.gallery);
-                    if (image != null) {
-                      pickedImage = image;
-                      webImageBytes = await image.readAsBytes();
-                      setStateDialog(() {});
-                    }
-                  },
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.photo_library,
+                            color: tileFill, size: 24),
+                        label: const Text("Gallery",
+                            style: TextStyle(color: tileFill, fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: mainGreen,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: () async {
+                          final image = await picker.pickImage(
+                              source: ImageSource.gallery);
+                          if (image != null) {
+                            pickedImage = image;
+                            webImageBytes = await image.readAsBytes();
+                            setStateDialog(() {});
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        icon: const Icon(Icons.camera_alt,
+                            color: tileFill, size: 24),
+                        label: const Text("Camera",
+                            style: TextStyle(color: tileFill, fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: mainGreen,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                        ),
+                        onPressed: () async {
+                          final image = await picker.pickImage(
+                              source: ImageSource.camera);
+                          if (image != null) {
+                            pickedImage = image;
+                            webImageBytes = await image.readAsBytes();
+                            setStateDialog(() {});
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
                 if (pickedImage != null)

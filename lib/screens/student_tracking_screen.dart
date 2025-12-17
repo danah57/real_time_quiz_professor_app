@@ -1,5 +1,6 @@
 // lib/screens/student_tracking_screen.dart
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/quiz.dart';
 import '../services/firebase_data_service.dart';
@@ -240,8 +241,7 @@ class StudentTrackingScreen extends StatelessWidget {
                       }
                     }
 
-                    // Get student name or use ID if not found
-                    final studentName = student?.name ?? 'Unknown Student';
+                    // Student name will be fetched by _StudentNameWidget
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
@@ -276,14 +276,10 @@ class StudentTrackingScreen extends StatelessWidget {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        studentName,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          color: mainGreen,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
+                                      _StudentNameWidget(
+                                        studentId: studentId,
+                                        student: student,
+                                        quizId: quiz.id,
                                       ),
                                       if (status == 'finished')
                                         Container(
@@ -546,5 +542,89 @@ class StudentTrackingScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// Widget to fetch and display student name asynchronously
+class _StudentNameWidget extends StatelessWidget {
+  final String studentId;
+  final dynamic student; // Student model or null
+  final String quizId;
+
+  const _StudentNameWidget({
+    required this.studentId,
+    this.student,
+    required this.quizId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // If student is already in the map, use it
+    if (student != null && student.name.isNotEmpty) {
+      return Text(
+        student.name,
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: StudentTrackingScreen.mainGreen,
+        ),
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    // Otherwise, fetch from Firestore
+    return FutureBuilder<String>(
+      future: _fetchStudentName(),
+      builder: (context, snapshot) {
+        final name = snapshot.data ?? 'Loading...';
+        return Text(
+          name,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: name == 'Loading...'
+                ? Colors.grey
+                : StudentTrackingScreen.mainGreen,
+          ),
+          overflow: TextOverflow.ellipsis,
+        );
+      },
+    );
+  }
+
+  Future<String> _fetchStudentName() async {
+    try {
+      // Try Firestore users collection first
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(studentId)
+          .get();
+      if (userDoc.exists) {
+        final userData = userDoc.data();
+        final name = (userData?['name'] as String?) ??
+            (userData?['username'] as String?) ??
+            (userData?['email'] as String?);
+        if (name != null && name.isNotEmpty) {
+          return name;
+        }
+      }
+
+      // Try quiz_results collection
+      final quizResults =
+          await FirebaseDataService.instance.getQuizResults(quizId);
+      final result = quizResults.firstWhere(
+        (r) => r['studentId'] == studentId,
+        orElse: () => {},
+      );
+      if (result.isNotEmpty) {
+        final name = result['studentName'] as String?;
+        if (name != null && name.isNotEmpty) {
+          return name;
+        }
+      }
+    } catch (e) {
+      print('Error fetching student name for $studentId: $e');
+    }
+    return 'Unknown Student';
   }
 }
