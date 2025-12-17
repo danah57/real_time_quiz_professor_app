@@ -249,7 +249,7 @@ class CourseDetailsScreen extends StatelessWidget {
                                   value: m,
                                   child: Container(
                                     padding: const EdgeInsets.symmetric(
-                                        horizontal: 12, vertical: 6),
+                                        horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
                                       borderRadius: BorderRadius.circular(12),
                                     ),
@@ -299,10 +299,10 @@ class CourseDetailsScreen extends StatelessWidget {
                 ],
               ),
               if (isCustomDuration) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 const Text("Custom Duration (minutes)",
-                    style: TextStyle(fontSize: 16, color: mainGreen)),
-                const SizedBox(height: 8),
+                    style: TextStyle(fontSize: 12, color: mainGreen)),
+                const SizedBox(height: 1),
                 TextField(
                   controller: customDurationController,
                   keyboardType: TextInputType.number,
@@ -310,8 +310,8 @@ class CourseDetailsScreen extends StatelessWidget {
                     hintText: "Enter duration in minutes",
                     filled: true,
                     fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 18),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(18),
                       borderSide:
@@ -322,7 +322,7 @@ class CourseDetailsScreen extends StatelessWidget {
                       borderSide: const BorderSide(color: mainGreen, width: 3),
                     ),
                   ),
-                  style: const TextStyle(color: mainGreen, fontSize: 18),
+                  style: const TextStyle(color: mainGreen, fontSize: 9),
                   onChanged: (value) {
                     setState(() {
                       if (value.isNotEmpty) {

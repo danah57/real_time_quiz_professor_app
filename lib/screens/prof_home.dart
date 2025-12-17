@@ -8,7 +8,9 @@ import '../cubit/course_cubit.dart';
 import '../models/course.dart';
 import '../screens/course_details_screen.dart';
 import '../screens/dashboard_screen.dart';
+import '../screens/dashboard_screen.dart';
 import '../screens/notifications_screen.dart';
+import '../services/prof_notification_service.dart';
 
 class ProfessorHome extends StatefulWidget {
   const ProfessorHome({super.key});
@@ -49,6 +51,7 @@ class _ProfessorHomeState extends State<ProfessorHome> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startAnimationSequence();
+      ProfNotificationService.checkForInitialMessage();
     });
   }
 

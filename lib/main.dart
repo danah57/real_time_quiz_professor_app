@@ -6,9 +6,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'cubit/course_cubit.dart';
 import 'cubit/quiz_cubit.dart';
+import 'cubit/notification_cubit.dart';
 import 'screens/prof_home.dart';
 import 'services/firebase_data_service.dart';
 import 'services/prof_notification_service.dart';
+import 'services/navigation_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +43,9 @@ class MyApp extends StatelessWidget {
           create: (_) =>
               QuizCubit(FirebaseDataService.instance)..loadInitialData(),
         ),
+        BlocProvider(
+          create: (context) => NotificationCubit(),
+        ),
       ],
       child: MaterialApp(
         title: 'Professor Quiz App',
@@ -51,6 +56,7 @@ class MyApp extends StatelessWidget {
           useMaterial3: true,
         ),
         home: const ProfessorHome(),
+        navigatorKey: navigatorKey,
       ),
     );
   }

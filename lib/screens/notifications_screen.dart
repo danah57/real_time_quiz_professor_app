@@ -1,11 +1,8 @@
-// lib/screens/notifications_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
-import '../cubit/course_cubit.dart';
-import '../services/firebase_data_service.dart';
-import '../models/quiz.dart';
-import '../models/student.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../cubit/notification_cubit.dart';
+import '../models/notification.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -25,20 +22,29 @@ class NotificationsScreen extends StatelessWidget {
         title: const Text(
           "Results & Scores",
           style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 20),
+            color: Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+          ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded,
-              color: beigeLight, size: 24),
+          icon: const Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: Colors.white,
+            size: 24,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: BlocBuilder<CourseCubit, CourseState>(
+      body: BlocBuilder<NotificationCubit, NotificationState>(
         builder: (context, state) {
-          final quizzes = FirebaseDataService.instance.quizzes;
-          final students = FirebaseDataService.instance.students;
+          if (state.status == NotificationStatus.loading) {
+            return const Center(
+              child: CircularProgressIndicator(color: mainGreen),
+            );
+          }
 
-          if (quizzes.isEmpty || students.isEmpty) {
+          if (state.notifications.isEmpty) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -57,7 +63,7 @@ class NotificationsScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   const Text(
-                    "No results yet",
+                    "No notifications yet",
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -77,67 +83,15 @@ class NotificationsScreen extends StatelessWidget {
             );
           }
 
-          return FutureBuilder<List<_QuizResult>>(
-            future: _loadQuizResults(quizzes, students),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(
-                  child: CircularProgressIndicator(
-                    color: mainGreen,
-                  ),
-                );
-              }
-
-          final results = snapshot.data ?? [];
-
-              if (results.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: mainGreen.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.assignment_outlined,
-                      size: 64,
-                      color: mainGreen.withOpacity(0.7),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    "No completed quizzes",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: mainGreen,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Students need to complete quizzes first",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-              // Sort by completion date (newest first)
-              results.sort((a, b) => b.completedAt.compareTo(a.completedAt));
-
-              return ListView.builder(
+          return ListView.builder(
             padding: const EdgeInsets.all(16),
-            itemCount: results.length,
+            itemCount: state.notifications.length,
             itemBuilder: (context, index) {
-              final result = results[index];
-              final isPassing = result.percentage >= 60;
+              final notif = state.notifications[index];
+              final percentage = notif.totalQuestions > 0
+                  ? ((notif.score / notif.totalQuestions) * 100).round()
+                  : 0;
+              final isPassing = percentage >= 60;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 16),
@@ -164,7 +118,7 @@ class NotificationsScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Header with student and quiz info
+                      // Header
                       Row(
                         children: [
                           Container(
@@ -173,258 +127,208 @@ class NotificationsScreen extends StatelessWidget {
                               color: mainGreen.withOpacity(0.1),
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.person,
-                                color: mainGreen, size: 24),
+                            child: const Icon(
+                              Icons.person,
+                              color: mainGreen,
+                              size: 24,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  result.student.name,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: mainGreen,
+                                  Text(
+                                    notif.studentName,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: mainGreen,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  result.quiz.title,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isPassing ? lightGreen : Colors.orange,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              "${result.percentage}%",
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
+                                  const SizedBox(height: 4),
+                                  _QuizAndCourseName(quizId: notif.quizId),
+                                ],
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 12),
-                      // Score details
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
-                        children: [
-                          _ScoreDetail(
-                            icon: Icons.check_circle,
-                            label: "Correct",
-                            value: "${result.correct}",
-                            color: lightGreen,
-                          ),
-                          Container(
-                            width: 1,
-                            height: 40,
-                            color: Colors.grey[300],
-                          ),
-                          _ScoreDetail(
-                            icon: Icons.quiz,
-                            label: "Total",
-                            value: "${result.total}",
-                            color: mainGreen,
-                          ),
-                          Container(
-                            width: 1,
-                            height: 40,
-                            color: Colors.grey[300],
-                          ),
-                          _ScoreDetail(
-                            icon: Icons.calendar_today,
-                            label: "Date",
-                            value:
-                                DateFormat('MMM dd').format(result.completedAt),
-                            color: Colors.blue,
-                          ),
-                          if (result.timeTakenSeconds != null) ...[
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isPassing ? lightGreen : Colors.orange,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                "$percentage%",
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        const Divider(),
+                        const SizedBox(height: 12),
+                        // Score details
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _ScoreDetail(
+                              icon: Icons.check_circle,
+                              label: "Correct",
+                              value: "${notif.score}",
+                              color: lightGreen,
+                            ),
                             Container(
                               width: 1,
                               height: 40,
                               color: Colors.grey[300],
                             ),
                             _ScoreDetail(
-                              icon: Icons.access_time,
-                              label: "Time",
-                              value: _formatTime(result.timeTakenSeconds!),
-                              color: Colors.purple,
+                              icon: Icons.quiz,
+                              label: "Total",
+                              value: "${notif.totalQuestions}",
+                              color: mainGreen,
                             ),
+                            if (notif.timeTakenSeconds != null) ...[
+                              Container(
+                                width: 1,
+                                height: 40,
+                                color: Colors.grey[300],
+                              ),
+                              _ScoreDetail(
+                                icon: Icons.access_time,
+                                label: "Time",
+                                value: _formatTime(notif.timeTakenSeconds!),
+                                color: Colors.purple,
+                              ),
+                            ],
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      // Progress bar
-                      Container(
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(4),
                         ),
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: result.percentage / 100,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isPassing ? lightGreen : Colors.orange,
-                              borderRadius: BorderRadius.circular(4),
+                        const SizedBox(height: 12),
+                        // Progress bar
+                        Container(
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: percentage / 100,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isPassing ? lightGreen : Colors.orange,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              );
+                );
               },
             );
-            },
+          },
+        ),
+      );
+    }
+  
+    String _formatTime(int seconds) {
+      if (seconds < 60) {
+        return '${seconds}s';
+      } else if (seconds < 3600) {
+        final minutes = seconds ~/ 60;
+        final secs = seconds % 60;
+        return '${minutes}m ${secs}s';
+      } else {
+        final hours = seconds ~/ 3600;
+        final minutes = (seconds % 3600) ~/ 60;
+        return '${hours}h ${minutes}m';
+      }
+    }
+  }
+  
+  class _QuizAndCourseName extends StatelessWidget {
+    final String quizId;
+  
+    const _QuizAndCourseName({required this.quizId});
+  
+    Future<Map<String, String>> _fetchNames() async {
+      try {
+        final quizDoc =
+            await FirebaseFirestore.instance.collection('quizzes').doc(quizId).get();
+        if (!quizDoc.exists) return {'quiz': 'Unknown Quiz', 'course': ''};
+  
+        final data = quizDoc.data()!;
+        final quizTitle = data['title'] as String? ?? 'Unnamed Quiz';
+        final courseId = data['courseId'] as String? ?? '';
+  
+        String courseName = '';
+        if (courseId.isNotEmpty) {
+          final courseDoc = await FirebaseFirestore.instance
+              .collection('courses')
+              .doc(courseId)
+              .get();
+          if (courseDoc.exists) {
+            courseName = courseDoc.data()?['name'] as String? ?? '';
+          }
+        }
+  
+        return {'quiz': quizTitle, 'course': courseName};
+      } catch (e) {
+        return {'quiz': 'Error loading', 'course': ''};
+      }
+    }
+  
+    @override
+    Widget build(BuildContext context) {
+      return FutureBuilder<Map<String, String>>(
+        future: _fetchNames(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            );
+          }
+  
+          final quizName = snapshot.data?['quiz'] ?? 'Unknown Quiz';
+          final courseName = snapshot.data?['course'] ?? '';
+  
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                quizName,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey[800],
+                ),
+              ),
+              if (courseName.isNotEmpty)
+                Text(
+                  courseName,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    color: Colors.grey[600],
+                  ),
+                ),
+            ],
           );
         },
-      ),
-    );
-  }
-
-  Future<List<_QuizResult>> _loadQuizResults(
-      List<Quiz> quizzes, List<Student> students) async {
-    final List<_QuizResult> results = [];
-
-    // First, try to get results from quiz_results collection
-    for (final quiz in quizzes) {
-      if (quiz.questions.isEmpty) continue;
-
-      try {
-        // Get quiz results from Firestore
-        final quizResults =
-            await FirebaseDataService.instance.getQuizResults(quiz.id);
-
-        for (final resultData in quizResults) {
-          final studentId = resultData['studentId'] as String?;
-          if (studentId == null) continue;
-
-          final student = students.firstWhere(
-            (s) => s.id == studentId,
-            orElse: () => Student(id: studentId, name: (resultData['studentName'] as String?) ?? 'Unknown Student'),
-          );
-
-          final correct = resultData['correctAnswers'] as int? ?? 0;
-          final total = resultData['totalQuestions'] as int? ?? 1;
-          final percentage = total > 0 ? ((correct / total) * 100).round() : 0;
-          final timeTakenSeconds = resultData['timeTaken'] as int?;
-          DateTime completedAt = quiz.date;
-          final completedAtRaw = resultData['completedAt'];
-          if (completedAtRaw is String) {
-            try {
-              completedAt = DateTime.parse(completedAtRaw);
-            } catch (_) {}
-          }
-
-          results.add(_QuizResult(
-            student: student,
-            quiz: quiz,
-            correct: correct,
-            total: total,
-            percentage: percentage,
-            timeTakenSeconds: timeTakenSeconds,
-            completedAt: completedAt,
-          ));
-        }
-      } catch (e) {
-        print('Error loading quiz results for ${quiz.id}: $e');
-      }
-    }
-
-    // If no results from quiz_results, fall back to calculating from student_answers
-    if (results.isEmpty) {
-      for (final quiz in quizzes) {
-        if (quiz.questions.isEmpty) continue;
-
-        for (final student in students) {
-          final answersMap =
-              FirebaseDataService.instance.getStudentAnswersMap(quiz.id);
-          final studentAnswers = answersMap[student.id] ?? {};
-
-          int correctCount = 0;
-          int answeredCount = 0;
-          for (int i = 0; i < quiz.questions.length && i < 10; i++) {
-            final answer = studentAnswers[i];
-            if (answer != null) {
-              answeredCount++;
-              if (answer == quiz.questions[i].correctAnswer) {
-                correctCount++;
-              }
-            }
-          }
-
-          if (answeredCount > 0) {
-            final percentage = (correctCount / answeredCount * 100).round();
-            results.add(_QuizResult(
-              student: student,
-              quiz: quiz,
-              correct: correctCount,
-              total: answeredCount,
-              percentage: percentage,
-              timeTakenSeconds: null,
-              completedAt: DateTime.now(),
-            ));
-          }
-        }
-      }
-    }
-
-    return results;
-  }
-
-  String _formatTime(int seconds) {
-    if (seconds < 60) {
-      return '${seconds}s';
-    } else if (seconds < 3600) {
-      final minutes = seconds ~/ 60;
-      final secs = seconds % 60;
-      return '${minutes}m ${secs}s';
-    } else {
-      final hours = seconds ~/ 3600;
-      final minutes = (seconds % 3600) ~/ 60;
-      return '${hours}h ${minutes}m';
+      );
     }
   }
-}
-
-class _QuizResult {
-  final Student student;
-  final Quiz quiz;
-  final int correct;
-  final int total;
-  final int percentage;
-  final int? timeTakenSeconds; // Time taken in seconds
-  final DateTime completedAt;
-
-  _QuizResult({
-    required this.student,
-    required this.quiz,
-    required this.correct,
-    required this.total,
-    required this.percentage,
-    this.timeTakenSeconds,
-    required this.completedAt,
-  });
-}
 
 class _ScoreDetail extends StatelessWidget {
   final IconData icon;
